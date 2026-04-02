@@ -10,7 +10,7 @@
 ## Documentação Principal
 
 | Arquivo | Descrição |
-|---------|-----------|  
+|---------|-----------|
 | [README.md](../README.md) | Documentação pública |
 | [TODO.md](TODO.md) | Tarefas pendentes |
 | [TODAY_ACTIVITIES.md](TODAY_ACTIVITIES.md) | Atividades do dia |
