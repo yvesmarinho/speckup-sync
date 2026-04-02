@@ -1,0 +1,10 @@
+{
+  "editor.formatOnSave": true,
+  "editor.rulers": [88],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true
+  }
+}
