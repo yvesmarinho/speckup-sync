@@ -1,0 +1,248 @@
+# speckup-sync
+
+A lightweight, local-first bridge between **Speckit workflows** and **ClickUp**.
+
+Use `speckup-sync` to turn your Speckit outputs (specs, plans, outcomes) into clean, structured updates in ClickUp — **without CI**, **without noisy integrations**, and **without manual copy/paste**. You keep task management in the ClickUp Desktop app, and `speckup-sync` pushes only high-signal information back to the task: summaries, technical bullets, links, status changes, and (optionally) custom fields — **idempotently**, so you don’t spam comments.
+
+> Status: early draft / blueprint stage.
+
+---
+
+## Why
+
+If you already manage tasks in ClickUp (nice UI, good tracking) and run your development workflow locally (Speckit + editor + git), there’s a gap:
+
+- Speckit generates structured artifacts locally
+- ClickUp is where you *track* the task
+- Copy/pasting results into ClickUp is repetitive and error-prone
+
+`speckup-sync` is the glue.
+
+---
+
+## What it does (MVP)
+
+- Reads ClickUp context from: `.clickup/context.json`
+- Reads Speckit outcome from: `.speckit/outcome.json`
+- Pushes to ClickUp via API:
+  - a comment with `summary` + optional `details` + `links`
+  - optional status update
+  - optional custom fields update
+- Ensures **idempotency** by adding a stable signature to comments (hash of outcome payload)
+
+---
+
+## Non-goals (for now)
+
+- Full ClickUp client replacement
+- CI-only pipelines
+- Auto-discovery magic without an explicit `task_id`
+- Dumping build logs into ClickUp (we prefer high-signal updates)
+
+---
+
+## Project layout (in your repo)
+
+`speckup-sync` expects these files in the target project repository:
+
+```
+<your-repo>/
+  .clickup/
+    context.json
+  .speckit/
+    outcome.json
+```
+
+### `.clickup/context.json`
+
+Minimal:
+
+```json
+{
+  "clickup": {
+    "task_id": "abc123"
+  }
+}
+```
+
+Recommended:
+
+```json
+{
+  "clickup": {
+    "team_id": "SEU_TEAM_ID",
+    "space_id": "SEU_SPACE_ID",
+    "list_id": "SEU_LIST_ID",
+    "task_id": "SEU_TASK_ID"
+  },
+  "project": {
+    "name": "meu-projeto",
+    "repo_path": "."
+  }
+}
+```
+
+### `.speckit/outcome.json`
+
+Example:
+
+```json
+{
+  "task_id": "abc123",
+  "status": "IN_REVIEW",
+  "summary": "Implementado OAuth callback + testes básicos. Ajustado timeout e logs.",
+  "details": [
+    "Criado endpoint /auth/callback",
+    "Adicionados testes unitários para o fluxo de token",
+    "Atualizada documentação em docs/oauth.md"
+  ],
+  "checklist_done": [
+    "Implementar endpoint /auth/callback",
+    "Adicionar testes unitários",
+    "Atualizar documentação"
+  ],
+  "links": [
+    { "type": "commit", "value": "local:HEAD" },
+    { "type": "doc", "value": "docs/oauth.md" }
+  ],
+  "custom_fields": {
+    "version": "0.3.0",
+    "module": "auth"
+  }
+}
+```
+
+Notes:
+- `task_id` can be in the outcome OR in `.clickup/context.json` (context should be fallback).
+- `status`, `details`, `checklist_done`, `links`, `custom_fields` are optional (depending on your setup).
+
+---
+
+## Idempotency (no comment spam)
+
+Each push includes an HTML comment signature such as:
+
+```
+<!-- speckup-sync: outcome_sha256=<...> -->
+```
+
+If the same hash was already posted, the tool should not post again.
+
+---
+
+## Installation (planned)
+
+Planned packaging:
+- Python 3
+- `pipx install speckup-sync` (future)
+- or `pip install -e .` for dev
+
+Until the first release, run as a local script/module.
+
+---
+
+## Configuration (planned)
+
+Token sources (priority order):
+1. `CLICKUP_TOKEN` environment variable
+2. `~/.config/speckup-sync/config.json`
+
+Example `~/.config/speckup-sync/config.json`:
+
+```json
+{
+  "clickup": {
+    "token": "SEU_PERSONAL_API_TOKEN"
+  },
+  "defaults": {
+    "team_id": "",
+    "space_id": "",
+    "list_id": ""
+  }
+}
+```
+
+Security:
+
+```sh
+chmod 600 ~/.config/speckup-sync/config.json
+```
+
+---
+
+## Usage (planned CLI)
+
+```sh
+# Initialize templates in the current repo
+speckup-sync init
+
+# Set the current task_id for the repo
+speckup-sync set-task abc123
+
+# Push outcome to ClickUp (comment + optional status/cfields)
+speckup-sync push --mode pre-pr
+speckup-sync push --mode progress
+speckup-sync push --mode done
+
+# Pull task snapshot (optional feature)
+speckup-sync pull
+```
+
+---
+
+## Suggested workflow (Copilot + Speckit + ClickUp)
+
+### Pre-PR
+1. Finish the Speckit workflow phase / consolidate changes
+2. Ask Copilot to generate/update `.speckit/outcome.json`
+3. Run:
+   ```sh
+   speckup-sync push --mode pre-pr
+   ```
+
+### Done
+1. Update outcome with final summary, risks, next steps
+2. Run:
+   ```sh
+   speckup-sync push --mode done
+   ```
+
+---
+
+## Development requirements (project rules)
+
+This project is built with strict conventions:
+
+- Every function/class must:
+  - validate parameters (type + empty checks)
+  - be wrapped in `try/except`
+  - return `False` on error
+- Docstrings:
+  - reStructuredText format
+  - include doctest examples
+
+> The CLI may still use exit codes, but the internal functions follow `return False` on failure.
+
+---
+
+## Roadmap
+
+- [ ] MVP: `push` comment with idempotency
+- [ ] Status update mapping
+- [ ] Custom fields update
+- [ ] `pull` snapshot
+- [ ] `$EDITOR` integration (vi-friendly) to edit outcome/spec
+- [ ] Optional checklist sync
+- [ ] Packaging + releases
+
+---
+
+## License
+
+TBD.
+
+---
+
+## Disclaimer
+
+ClickUp is a trademark of its respective owner. This project is not affiliated with ClickUp.
